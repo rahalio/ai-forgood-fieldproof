@@ -1,0 +1,2232 @@
+openapi: 3.0.3
+info:
+  title: Fieldproof
+  version: 0.1.0
+  description: >-
+    Deployment assurance for AI in humanitarian and development settings. Use cases pass
+    ordered readiness gates with named evidence, data is used only under recorded access
+    agreements, releases require subgroup-level validation and a declared human-in-the-loop
+    policy, live deployments are watched for silent failure, and every deployment carries a
+    named sustainment owner with funded runway before the implementation contract closes.
+  x-product-slug: ai-forgood-fieldproof
+  x-source: ai-in-for-good/MGI-Applying-ai-for-social-good-Discussion-paper-Dec-2018/
+servers:
+  - url: https://api.example.com
+tags:
+  - name: UseCases
+    description: Use-case registry, bottleneck assessment, and risk profiling
+  - name: Gates
+    description: Ordered readiness gates, evidence, approvals, and exceptions
+  - name: DataAccess
+    description: Data holders, access agreements, access modes, and asset provenance
+  - name: ModelAssurance
+    description: Validation runs, explainability, human-in-the-loop policy, release decisions
+  - name: FieldSites
+    description: Site-level device, power, connectivity, and language constraints
+  - name: Deployments
+    description: Live deployments, health checks, and suspension
+  - name: Sustainment
+    description: Sustainment owners, funded runway, talent roles, and capability handover
+  - name: Incidents
+    description: Harm reporting from the field and time-boxed adjudication
+  - name: Reporting
+    description: Portfolio assurance rollups and declared-method reach estimates
+paths:
+  /v1/use-cases:
+    get:
+      operationId: listUseCases
+      tags: [UseCases]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: domain
+          in: query
+          schema:
+            $ref: "#/components/schemas/SocialImpactDomain"
+        - name: gateStatus
+          in: query
+          schema:
+            type: string
+            enum: [in_gating, cleared, rejected, suspended]
+        - name: portfolioId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Use cases page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeUseCase"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: registerUseCase
+      tags: [UseCases]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UseCaseCreate"
+      responses:
+        "201":
+          description: Use case registered with its gate sequence instantiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeUseCase"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /v1/use-cases/{useCaseId}:
+    parameters:
+      - $ref: "#/components/parameters/UseCaseId"
+    get:
+      operationId: getUseCase
+      tags: [UseCases]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Use case
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeUseCase"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/use-cases/{useCaseId}/bottlenecks:
+    parameters:
+      - $ref: "#/components/parameters/UseCaseId"
+    get:
+      operationId: getBottleneckAssessment
+      tags: [UseCases]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Bottleneck assessment with criticality band per bottleneck
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeBottleneckAssessment"
+    post:
+      operationId: recordBottleneckAssessment
+      tags: [UseCases]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BottleneckAssessmentCreate"
+      responses:
+        "201":
+          description: Assessment recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeBottleneckAssessment"
+  /v1/use-cases/{useCaseId}/risk-profile:
+    parameters:
+      - $ref: "#/components/parameters/UseCaseId"
+    put:
+      operationId: setRiskProfile
+      tags: [UseCases]
+      description: >-
+        Sets bias, privacy, unsafe-use and explainability scores. The profile determines the
+        depth of review and whether an explainability method and human check are mandatory.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RiskProfile"
+      responses:
+        "200":
+          description: Risk profile stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeRiskProfile"
+  /v1/use-cases/{useCaseId}/gates:
+    parameters:
+      - $ref: "#/components/parameters/UseCaseId"
+    get:
+      operationId: listReadinessGates
+      tags: [Gates]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Gate sequence with status, evidence and blocking bottlenecks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeReadinessGate"
+  /v1/use-cases/{useCaseId}/gates/{gateKey}/evidence:
+    parameters:
+      - $ref: "#/components/parameters/UseCaseId"
+      - $ref: "#/components/parameters/GateKey"
+    post:
+      operationId: submitGateEvidence
+      tags: [Gates]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GateEvidenceCreate"
+      responses:
+        "201":
+          description: Evidence attached to the gate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeReadinessGate"
+  /v1/use-cases/{useCaseId}/gates/{gateKey}/decision:
+    parameters:
+      - $ref: "#/components/parameters/UseCaseId"
+      - $ref: "#/components/parameters/GateKey"
+    post:
+      operationId: decideGate
+      tags: [Gates]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome, approverId]
+              properties:
+                outcome:
+                  type: string
+                  enum: [approved, rejected]
+                approverId:
+                  type: string
+                rationale:
+                  type: string
+      responses:
+        "200":
+          description: Gate decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeReadinessGate"
+        "409":
+          description: An earlier gate in the sequence is still open
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/use-cases/{useCaseId}/gates/{gateKey}/exception:
+    parameters:
+      - $ref: "#/components/parameters/UseCaseId"
+      - $ref: "#/components/parameters/GateKey"
+    post:
+      operationId: grantGateException
+      tags: [Gates]
+      description: Exceptions require an owner, a rationale and an expiry date.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ownerId, rationale, expiresAt]
+              properties:
+                ownerId:
+                  type: string
+                rationale:
+                  type: string
+                expiresAt:
+                  type: string
+                  format: date
+      responses:
+        "201":
+          description: Exception granted and recorded on the gate
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeReadinessGate"
+  /v1/data-access/agreements:
+    get:
+      operationId: listDataAccessAgreements
+      tags: [DataAccess]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: holderId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, expired, revoked, pending]
+      responses:
+        "200":
+          description: Access agreements page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeDataAccessAgreement"
+    post:
+      operationId: createDataAccessAgreement
+      tags: [DataAccess]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DataAccessAgreementCreate"
+      responses:
+        "201":
+          description: Agreement recorded with purpose, mode and expiry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeDataAccessAgreement"
+  /v1/data-access/agreements/{agreementId}/revocation:
+    parameters:
+      - $ref: "#/components/parameters/AgreementId"
+    post:
+      operationId: revokeDataAccessAgreement
+      tags: [DataAccess]
+      description: >-
+        Revocation suspends every deployment that depends on this agreement. The response
+        lists the deployments suspended.
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                effectiveAt:
+                  type: string
+                  format: date-time
+      responses:
+        "202":
+          description: Agreement revoked and dependent deployments suspended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeRevocationResult"
+  /v1/data-assets:
+    post:
+      operationId: registerDataAsset
+      tags: [DataAccess]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DataAssetCreate"
+      responses:
+        "201":
+          description: Asset registered with provenance, labelling and known flaws
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeDataAsset"
+    get:
+      operationId: listDataAssets
+      tags: [DataAccess]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Data assets page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeDataAsset"
+  /v1/data-assets/{assetId}:
+    parameters:
+      - $ref: "#/components/parameters/AssetId"
+    get:
+      operationId: getDataAsset
+      tags: [DataAccess]
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Data asset with provenance and prohibited claims
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeDataAsset"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/model-releases:
+    post:
+      operationId: submitModelRelease
+      tags: [ModelAssurance]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModelReleaseCreate"
+      responses:
+        "201":
+          description: Release candidate submitted for assurance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeModelRelease"
+    get:
+      operationId: listModelReleases
+      tags: [ModelAssurance]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: useCaseId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [candidate, validated, released, blocked, retired]
+      responses:
+        "200":
+          description: Model releases page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeModelRelease"
+  /v1/model-releases/{releaseId}:
+    parameters:
+      - $ref: "#/components/parameters/ReleaseId"
+    get:
+      operationId: getModelRelease
+      tags: [ModelAssurance]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Release with validation runs and policies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeModelRelease"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/model-releases/{releaseId}/validation-runs:
+    parameters:
+      - $ref: "#/components/parameters/ReleaseId"
+    post:
+      operationId: recordValidationRun
+      tags: [ModelAssurance]
+      description: >-
+        Aggregate-only results are rejected. A run must report performance per declared
+        subgroup and per site where the model will operate.
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValidationRunCreate"
+      responses:
+        "201":
+          description: Validation run recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeValidationRun"
+        "422":
+          description: Run rejected - missing subgroup or site breakdown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/model-releases/{releaseId}/decision:
+    parameters:
+      - $ref: "#/components/parameters/ReleaseId"
+    post:
+      operationId: decideModelRelease
+      tags: [ModelAssurance]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome, reviewerId]
+              properties:
+                outcome:
+                  type: string
+                  enum: [released, blocked]
+                reviewerId:
+                  type: string
+                rationale:
+                  type: string
+      responses:
+        "200":
+          description: Release decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeModelRelease"
+        "409":
+          description: >-
+            Release refused - worst-subgroup performance outside tolerance, or an
+            individual-affecting use case without explainability and a human check
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/field-sites:
+    get:
+      operationId: listFieldSites
+      tags: [FieldSites]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: country
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Field sites page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeFieldSite"
+    post:
+      operationId: registerFieldSite
+      tags: [FieldSites]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FieldSiteCreate"
+      responses:
+        "201":
+          description: Site registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeFieldSite"
+  /v1/field-sites/{siteId}/constraints:
+    parameters:
+      - $ref: "#/components/parameters/SiteId"
+    post:
+      operationId: recordLastMileConstraint
+      tags: [FieldSites]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LastMileConstraint"
+      responses:
+        "201":
+          description: Constraint recorded against the site
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeFieldSite"
+  /v1/deployments:
+    get:
+      operationId: listDeployments
+      tags: [Deployments]
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, degraded, suspended, retired]
+        - name: shelfwareRisk
+          in: query
+          schema:
+            type: string
+            enum: [none, watch, high]
+      responses:
+        "200":
+          description: Deployments page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeDeployment"
+    post:
+      operationId: activateDeployment
+      tags: [Deployments]
+      description: >-
+        Activation is refused when a required gate is open, when no active data agreement
+        covers the model's inputs, or when no sustainment owner is named.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeploymentCreate"
+      responses:
+        "201":
+          description: Deployment activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeDeployment"
+        "409":
+          description: Preconditions not met for activation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/deployments/{deploymentId}/health-checks:
+    parameters:
+      - $ref: "#/components/parameters/DeploymentId"
+    post:
+      operationId: recordDeploymentHealthCheck
+      tags: [Deployments]
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeploymentHealthCheckCreate"
+      responses:
+        "201":
+          description: Health check recorded, silent-failure signals evaluated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeDeploymentHealthCheck"
+  /v1/deployments/{deploymentId}/suspension:
+    parameters:
+      - $ref: "#/components/parameters/DeploymentId"
+    post:
+      operationId: suspendDeployment
+      tags: [Deployments]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, initiatedBy]
+              properties:
+                reason:
+                  type: string
+                  enum: [harm_report, data_agreement_lapsed, drift, unfilled_talent_role, funder_hold]
+                initiatedBy:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        "202":
+          description: Deployment suspended
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeDeployment"
+  /v1/deployments/{deploymentId}/sustainment-plan:
+    parameters:
+      - $ref: "#/components/parameters/DeploymentId"
+    put:
+      operationId: setSustainmentPlan
+      tags: [Sustainment]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SustainmentPlan"
+      responses:
+        "200":
+          description: Sustainment plan stored with owner and funded runway
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeSustainmentPlan"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /v1/deployments/{deploymentId}/handover:
+    parameters:
+      - $ref: "#/components/parameters/DeploymentId"
+    post:
+      operationId: acceptCapabilityHandover
+      tags: [Sustainment]
+      description: >-
+        Handover cannot be accepted while checklist items remain open; the deployment is
+        instead flagged to the funder as shelfware risk.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CapabilityHandoverCreate"
+      responses:
+        "200":
+          description: Handover accepted by the named owner
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeCapabilityHandover"
+        "409":
+          description: Handover checklist incomplete - flagged as shelfware risk
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+  /v1/deployments/{deploymentId}/talent-assignments:
+    parameters:
+      - $ref: "#/components/parameters/DeploymentId"
+    post:
+      operationId: recordTalentAssignment
+      tags: [Sustainment]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TalentAssignment"
+      responses:
+        "201":
+          description: Talent role recorded, including unfilled roles
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeTalentAssignment"
+  /v1/harm-reports:
+    post:
+      operationId: reportHarm
+      tags: [Incidents]
+      description: >-
+        Plain-language intake for field staff. Routes to reviewer and funder directly and
+        never through the implementing organisation being assessed.
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HarmReportCreate"
+      responses:
+        "201":
+          description: Harm report opened with a review deadline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeHarmReport"
+    get:
+      operationId: listHarmReports
+      tags: [Incidents]
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, under_review, upheld, not_upheld, withdrawn]
+      responses:
+        "200":
+          description: Harm reports page with reporter identity withheld
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListEnvelopeHarmReport"
+  /v1/harm-reports/{reportId}/adjudication:
+    parameters:
+      - $ref: "#/components/parameters/ReportId"
+    post:
+      operationId: adjudicateHarmReport
+      tags: [Incidents]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome, reviewerId]
+              properties:
+                outcome:
+                  type: string
+                  enum: [upheld, not_upheld, referred]
+                reviewerId:
+                  type: string
+                remediation:
+                  type: string
+                suspendDeployment:
+                  type: boolean
+      responses:
+        "200":
+          description: Adjudication recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeHarmReport"
+  /v1/reports/portfolio-assurance:
+    get:
+      operationId: getPortfolioAssuranceReport
+      tags: [Reporting]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: portfolioId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: period
+          in: query
+          schema:
+            type: string
+            example: 2026-H1
+      responses:
+        "200":
+          description: Gate, risk, shelfware and talent-gap rollup for the portfolio
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopePortfolioAssuranceReport"
+  /v1/reports/reach-estimates:
+    post:
+      operationId: computeReachEstimate
+      tags: [Reporting]
+      description: >-
+        Computes reach from a declared population base and run frequency per individual, and
+        labels the result as estimated rather than verified.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReachEstimateCreate"
+      responses:
+        "201":
+          description: Reach estimate computed with its method attached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelopeReachEstimate"
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+    UseCaseId:
+      name: useCaseId
+      in: path
+      required: true
+      schema:
+        type: string
+    GateKey:
+      name: gateKey
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/GateKey"
+    AgreementId:
+      name: agreementId
+      in: path
+      required: true
+      schema:
+        type: string
+    AssetId:
+      name: assetId
+      in: path
+      required: true
+      schema:
+        type: string
+    ReleaseId:
+      name: releaseId
+      in: path
+      required: true
+      schema:
+        type: string
+    SiteId:
+      name: siteId
+      in: path
+      required: true
+      schema:
+        type: string
+    DeploymentId:
+      name: deploymentId
+      in: path
+      required: true
+      schema:
+        type: string
+    ReportId:
+      name: reportId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Unauthorized:
+      description: Missing or invalid credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+    UnprocessableEntity:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+  schemas:
+    ResponseMeta:
+      type: object
+      required: [requestId, timestamp]
+      properties:
+        requestId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+    Money:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+          example: USD
+    SocialImpactDomain:
+      type: string
+      enum:
+        - crisis_response
+        - economic_empowerment
+        - education
+        - environment
+        - equality_and_inclusion
+        - health_and_hunger
+        - information_verification
+        - infrastructure_management
+        - public_and_social_sector
+        - security_and_justice
+    AiCapability:
+      type: string
+      enum:
+        - image_classification
+        - object_detection
+        - person_identification
+        - face_detection
+        - emotion_recognition
+        - optical_character_recognition
+        - tracking
+        - speech_to_text
+        - sound_detection
+        - language_understanding
+        - language_translation
+        - sentiment_analysis
+        - content_generation
+        - reinforcement_learning
+        - structured_deep_learning
+        - analytics
+    DataModality:
+      type: string
+      enum: [image, video, audio, text, structured, multimodal]
+    GateKey:
+      type: string
+      enum:
+        - problem_defined
+        - technical_translation
+        - ai_is_the_bottleneck
+        - deploying_organisation_committed
+        - data_available
+        - data_accessible
+        - data_quality_ensured
+        - model_validated
+        - value_proven_in_field
+        - capability_transferred
+    Portfolio:
+      type: object
+      required: [id, funderName]
+      properties:
+        id:
+          type: string
+        funderName:
+          type: string
+        domainsInScope:
+          type: array
+          items:
+            $ref: "#/components/schemas/SocialImpactDomain"
+    Grant:
+      type: object
+      required: [id, portfolioId, amount]
+      properties:
+        id:
+          type: string
+        portfolioId:
+          type: string
+        granteeName:
+          type: string
+        amount:
+          $ref: "#/components/schemas/Money"
+        startsOn:
+          type: string
+          format: date
+        endsOn:
+          type: string
+          format: date
+        disbursementHeld:
+          type: boolean
+    UseCase:
+      type: object
+      required: [id, title, domain, gateStatus]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        domain:
+          $ref: "#/components/schemas/SocialImpactDomain"
+        issueType:
+          type: string
+        societalProblem:
+          type: string
+        measurableObjective:
+          type: string
+        targetPopulationBase:
+          type: integer
+        capabilities:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiCapability"
+        modality:
+          $ref: "#/components/schemas/DataModality"
+        individualAffecting:
+          type: boolean
+          description: True when outputs identify or determine outcomes for individuals
+        portfolioId:
+          type: string
+        grantId:
+          type: string
+        gateStatus:
+          type: string
+          enum: [in_gating, cleared, rejected, suspended]
+    UseCaseCreate:
+      type: object
+      required: [title, domain, societalProblem, measurableObjective]
+      properties:
+        title:
+          type: string
+        domain:
+          $ref: "#/components/schemas/SocialImpactDomain"
+        issueType:
+          type: string
+        societalProblem:
+          type: string
+        measurableObjective:
+          type: string
+        targetPopulationBase:
+          type: integer
+        capabilities:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiCapability"
+        modality:
+          $ref: "#/components/schemas/DataModality"
+        individualAffecting:
+          type: boolean
+        portfolioId:
+          type: string
+        grantId:
+          type: string
+    ReadinessGate:
+      type: object
+      required: [useCaseId, gateKey, status]
+      properties:
+        useCaseId:
+          type: string
+        gateKey:
+          $ref: "#/components/schemas/GateKey"
+        sequence:
+          type: integer
+        status:
+          type: string
+          enum: [not_started, evidence_submitted, approved, rejected, excepted, expired]
+        requiredEvidence:
+          type: array
+          items:
+            type: string
+        evidence:
+          type: array
+          items:
+            $ref: "#/components/schemas/GateEvidence"
+        blockingBottlenecks:
+          type: array
+          items:
+            $ref: "#/components/schemas/BottleneckKey"
+        approverId:
+          type: string
+        decidedAt:
+          type: string
+          format: date-time
+        exception:
+          type: object
+          properties:
+            ownerId:
+              type: string
+            rationale:
+              type: string
+            expiresAt:
+              type: string
+              format: date
+    GateEvidence:
+      type: object
+      required: [id, kind]
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [document, validation_run, data_agreement, site_assessment, handover_record, external_review]
+        reference:
+          type: string
+        submittedBy:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+        externallyVisible:
+          type: boolean
+    GateEvidenceCreate:
+      type: object
+      required: [kind, reference]
+      properties:
+        kind:
+          type: string
+          enum: [document, validation_run, data_agreement, site_assessment, handover_record, external_review]
+        reference:
+          type: string
+        note:
+          type: string
+    BottleneckKey:
+      type: string
+      enum:
+        - data_accessibility
+        - data_availability
+        - data_quality
+        - data_volume
+        - data_labeling
+        - data_integration
+        - high_level_ai_expertise
+        - ai_practitioner_talent
+        - translator_capacity
+        - access_to_technology
+        - access_to_computing_capacity
+        - software_libraries
+        - organisation_receptiveness
+        - organisation_deployment_efficacy
+        - scaling_organisation_availability
+        - regulatory_limitations
+        - public_resistance
+        - last_mile_implementation
+    BottleneckAssessment:
+      type: object
+      required: [useCaseId, entries]
+      properties:
+        useCaseId:
+          type: string
+        assessedAt:
+          type: string
+          format: date-time
+        entries:
+          type: array
+          items:
+            type: object
+            required: [bottleneck, criticality]
+            properties:
+              bottleneck:
+                $ref: "#/components/schemas/BottleneckKey"
+              criticality:
+                type: string
+                enum: [critical_for_most, critical_for_select_cases, contextual, not_applicable]
+              status:
+                type: string
+                enum: [open, mitigating, cleared]
+              mitigation:
+                type: string
+    BottleneckAssessmentCreate:
+      type: object
+      required: [entries]
+      properties:
+        entries:
+          type: array
+          items:
+            type: object
+            required: [bottleneck, criticality]
+            properties:
+              bottleneck:
+                $ref: "#/components/schemas/BottleneckKey"
+              criticality:
+                type: string
+                enum: [critical_for_most, critical_for_select_cases, contextual, not_applicable]
+              status:
+                type: string
+                enum: [open, mitigating, cleared]
+              mitigation:
+                type: string
+    RiskProfile:
+      type: object
+      required: [bias, privacyViolation, unsafeUse, explainabilityRequired]
+      properties:
+        useCaseId:
+          type: string
+        bias:
+          $ref: "#/components/schemas/RiskLevel"
+        privacyViolation:
+          $ref: "#/components/schemas/RiskLevel"
+        unsafeUse:
+          $ref: "#/components/schemas/RiskLevel"
+        explainabilityRequired:
+          $ref: "#/components/schemas/RiskLevel"
+        workforceDisplacement:
+          $ref: "#/components/schemas/RiskLevel"
+        reviewDepth:
+          type: string
+          enum: [light, standard, enhanced, red_team]
+        assessedBy:
+          type: string
+    RiskLevel:
+      type: string
+      enum: [low, medium, high]
+    DataHolder:
+      type: object
+      required: [id, name, holderType]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        holderType:
+          type: string
+          enum: [telecom, satellite_operator, government_agency, health_provider, financial_institution, platform, ngo]
+        jurisdiction:
+          type: string
+        localisationRestricted:
+          type: boolean
+    DataAccessAgreement:
+      type: object
+      required: [id, holderId, accessMode, purpose, status]
+      properties:
+        id:
+          type: string
+        holderId:
+          type: string
+        useCaseIds:
+          type: array
+          items:
+            type: string
+        accessMode:
+          type: string
+          enum: [open_release, purchased, government_release, emergency_charter, compute_to_data, aggregate_only]
+        purpose:
+          type: string
+        retentionDays:
+          type: integer
+        dataLeavesHolder:
+          type: boolean
+        status:
+          type: string
+          enum: [pending, active, expired, revoked]
+        expiresAt:
+          type: string
+          format: date-time
+        revocationReason:
+          type: string
+        stewardId:
+          type: string
+    DataAccessAgreementCreate:
+      type: object
+      required: [holderId, accessMode, purpose]
+      properties:
+        holderId:
+          type: string
+        useCaseIds:
+          type: array
+          items:
+            type: string
+        accessMode:
+          type: string
+          enum: [open_release, purchased, government_release, emergency_charter, compute_to_data, aggregate_only]
+        purpose:
+          type: string
+        retentionDays:
+          type: integer
+        dataLeavesHolder:
+          type: boolean
+        expiresAt:
+          type: string
+          format: date-time
+    RevocationResult:
+      type: object
+      required: [agreementId, suspendedDeploymentIds]
+      properties:
+        agreementId:
+          type: string
+        suspendedDeploymentIds:
+          type: array
+          items:
+            type: string
+        effectiveAt:
+          type: string
+          format: date-time
+    DataAsset:
+      type: object
+      required: [id, name, modality]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        modality:
+          $ref: "#/components/schemas/DataModality"
+        agreementId:
+          type: string
+        provenance:
+          type: string
+        labellingMethod:
+          type: string
+          enum: [none, manual, crowd, expert, programmatic]
+        labelQualityScore:
+          type: number
+          format: float
+        representativenessNotes:
+          type: string
+        knownFlaws:
+          type: array
+          items:
+            type: string
+        prohibitedClaims:
+          type: array
+          items:
+            type: string
+          description: Claims this asset cannot support, recorded for downstream users
+    DataAssetCreate:
+      type: object
+      required: [name, modality]
+      properties:
+        name:
+          type: string
+        modality:
+          $ref: "#/components/schemas/DataModality"
+        agreementId:
+          type: string
+        provenance:
+          type: string
+        labellingMethod:
+          type: string
+          enum: [none, manual, crowd, expert, programmatic]
+        knownFlaws:
+          type: array
+          items:
+            type: string
+        prohibitedClaims:
+          type: array
+          items:
+            type: string
+    ModelRelease:
+      type: object
+      required: [id, useCaseId, version, status]
+      properties:
+        id:
+          type: string
+        useCaseId:
+          type: string
+        version:
+          type: string
+        builtBy:
+          type: string
+          enum: [internal_team, vendor, volunteer, research_group]
+        capabilities:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiCapability"
+        dataAssetIds:
+          type: array
+          items:
+            type: string
+        explainability:
+          $ref: "#/components/schemas/ExplainabilityMethod"
+        humanInLoop:
+          $ref: "#/components/schemas/HumanInLoopPolicy"
+        status:
+          type: string
+          enum: [candidate, validated, released, blocked, retired]
+        blockReason:
+          type: string
+        reviewerId:
+          type: string
+    ModelReleaseCreate:
+      type: object
+      required: [useCaseId, version]
+      properties:
+        useCaseId:
+          type: string
+        version:
+          type: string
+        builtBy:
+          type: string
+          enum: [internal_team, vendor, volunteer, research_group]
+        dataAssetIds:
+          type: array
+          items:
+            type: string
+        explainability:
+          $ref: "#/components/schemas/ExplainabilityMethod"
+        humanInLoop:
+          $ref: "#/components/schemas/HumanInLoopPolicy"
+    ExplainabilityMethod:
+      type: object
+      required: [method]
+      properties:
+        method:
+          type: string
+          enum: [none, feature_attribution, salient_region, decision_rules, case_based, human_readable_report]
+        audience:
+          type: string
+          enum: [reviewer_only, field_staff, affected_individual, regulator]
+        appealPathDescribed:
+          type: boolean
+    HumanInLoopPolicy:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [none, review_before_action, review_on_exception, dual_review, advisory_only]
+        reviewerRole:
+          type: string
+        disclaimerShownToUser:
+          type: boolean
+        fallbackWhenUnavailable:
+          type: string
+    ValidationRun:
+      type: object
+      required: [id, releaseId, overallMetric, subgroupResults]
+      properties:
+        id:
+          type: string
+        releaseId:
+          type: string
+        datasetRef:
+          type: string
+        overallMetric:
+          type: object
+          properties:
+            name:
+              type: string
+            value:
+              type: number
+              format: float
+        subgroupResults:
+          type: array
+          items:
+            type: object
+            required: [subgroup, value]
+            properties:
+              subgroup:
+                type: string
+              value:
+                type: number
+                format: float
+              sampleSize:
+                type: integer
+        siteResults:
+          type: array
+          items:
+            type: object
+            properties:
+              siteId:
+                type: string
+              value:
+                type: number
+                format: float
+        worstSubgroupGap:
+          type: number
+          format: float
+        toleranceBreached:
+          type: boolean
+        redTeamFindings:
+          type: array
+          items:
+            type: string
+        runAt:
+          type: string
+          format: date-time
+    ValidationRunCreate:
+      type: object
+      required: [overallMetric, subgroupResults]
+      properties:
+        datasetRef:
+          type: string
+        overallMetric:
+          type: object
+          properties:
+            name:
+              type: string
+            value:
+              type: number
+              format: float
+        subgroupResults:
+          type: array
+          items:
+            type: object
+            required: [subgroup, value]
+            properties:
+              subgroup:
+                type: string
+              value:
+                type: number
+                format: float
+              sampleSize:
+                type: integer
+        siteResults:
+          type: array
+          items:
+            type: object
+            properties:
+              siteId:
+                type: string
+              value:
+                type: number
+                format: float
+        redTeamFindings:
+          type: array
+          items:
+            type: string
+    FieldSite:
+      type: object
+      required: [id, name, country]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        country:
+          type: string
+        operatingPartner:
+          type: string
+        constraints:
+          type: array
+          items:
+            $ref: "#/components/schemas/LastMileConstraint"
+        retrainingRequired:
+          type: boolean
+          description: True where local conditions differ enough to need site-specific training data
+    FieldSiteCreate:
+      type: object
+      required: [name, country]
+      properties:
+        name:
+          type: string
+        country:
+          type: string
+        operatingPartner:
+          type: string
+    LastMileConstraint:
+      type: object
+      required: [constraintType, severity]
+      properties:
+        constraintType:
+          type: string
+          enum: [device_availability, connectivity, mains_power, language, literacy, operator_capacity, equipment_cost]
+        severity:
+          type: string
+          enum: [blocking, degrading, tolerable]
+        observation:
+          type: string
+        fallbackPath:
+          type: string
+        assessedBy:
+          type: string
+        assessedAt:
+          type: string
+          format: date-time
+    Deployment:
+      type: object
+      required: [id, useCaseId, releaseId, status]
+      properties:
+        id:
+          type: string
+        useCaseId:
+          type: string
+        releaseId:
+          type: string
+        siteIds:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [active, degraded, suspended, retired]
+        activatedAt:
+          type: string
+          format: date-time
+        suspensionReason:
+          type: string
+        shelfwareRisk:
+          type: string
+          enum: [none, watch, high]
+        sustainmentPlan:
+          $ref: "#/components/schemas/SustainmentPlan"
+    DeploymentCreate:
+      type: object
+      required: [useCaseId, releaseId, siteIds]
+      properties:
+        useCaseId:
+          type: string
+        releaseId:
+          type: string
+        siteIds:
+          type: array
+          items:
+            type: string
+    DeploymentHealthCheck:
+      type: object
+      required: [id, deploymentId, checkedAt, verdict]
+      properties:
+        id:
+          type: string
+        deploymentId:
+          type: string
+        checkedAt:
+          type: string
+          format: date-time
+        verdict:
+          type: string
+          enum: [healthy, degraded, silent_failure, offline]
+        inputFreshnessHours:
+          type: number
+          format: float
+        driftScore:
+          type: number
+          format: float
+        usageCount:
+          type: integer
+        expectedUsageCount:
+          type: integer
+        notes:
+          type: string
+    DeploymentHealthCheckCreate:
+      type: object
+      required: [checkedAt]
+      properties:
+        checkedAt:
+          type: string
+          format: date-time
+        inputFreshnessHours:
+          type: number
+          format: float
+        driftScore:
+          type: number
+          format: float
+        usageCount:
+          type: integer
+        notes:
+          type: string
+    TalentAssignment:
+      type: object
+      required: [role, status]
+      properties:
+        deploymentId:
+          type: string
+        role:
+          type: string
+          enum: [high_level_ai_expert, ai_practitioner, translator, field_operator, data_steward]
+        status:
+          type: string
+          enum: [filled, unfilled, at_risk]
+        holderName:
+          type: string
+        fundedThrough:
+          type: string
+          format: date
+        dependencyCriticality:
+          $ref: "#/components/schemas/RiskLevel"
+    SustainmentPlan:
+      type: object
+      required: [ownerId, fundedRunwayMonths]
+      properties:
+        deploymentId:
+          type: string
+        ownerId:
+          type: string
+        ownerOrganisation:
+          type: string
+        fundedRunwayMonths:
+          type: integer
+        annualRunCost:
+          $ref: "#/components/schemas/Money"
+        maintenanceContractRef:
+          type: string
+        handoverStatus:
+          type: string
+          enum: [not_started, in_progress, accepted, failed]
+        runwayEndsOn:
+          type: string
+          format: date
+    CapabilityHandover:
+      type: object
+      required: [deploymentId, checklist, status]
+      properties:
+        deploymentId:
+          type: string
+        status:
+          type: string
+          enum: [in_progress, accepted, refused]
+        acceptedBy:
+          type: string
+        acceptedAt:
+          type: string
+          format: date-time
+        checklist:
+          type: array
+          items:
+            type: object
+            required: [item, complete]
+            properties:
+              item:
+                type: string
+                enum:
+                  - runbook_delivered
+                  - retraining_procedure_documented
+                  - monitoring_ownership_assigned
+                  - credentials_transferred
+                  - staff_trained
+                  - support_contract_in_place
+              complete:
+                type: boolean
+              evidenceRef:
+                type: string
+    CapabilityHandoverCreate:
+      type: object
+      required: [acceptedBy, checklist]
+      properties:
+        acceptedBy:
+          type: string
+        checklist:
+          type: array
+          items:
+            type: object
+            required: [item, complete]
+            properties:
+              item:
+                type: string
+              complete:
+                type: boolean
+              evidenceRef:
+                type: string
+    HarmReport:
+      type: object
+      required: [id, deploymentId, description, status]
+      properties:
+        id:
+          type: string
+        deploymentId:
+          type: string
+        description:
+          type: string
+        harmType:
+          type: string
+          enum: [wrong_output, exclusion, privacy_exposure, physical_risk, coercive_use, other]
+        affectedGroup:
+          type: string
+        reporterRole:
+          type: string
+          enum: [field_staff, partner, community_member, reviewer, anonymous]
+        reporterProtected:
+          type: boolean
+        status:
+          type: string
+          enum: [open, under_review, upheld, not_upheld, withdrawn]
+        reviewDeadline:
+          type: string
+          format: date-time
+        remediation:
+          type: string
+        reviewerId:
+          type: string
+    HarmReportCreate:
+      type: object
+      required: [deploymentId, description]
+      properties:
+        deploymentId:
+          type: string
+        description:
+          type: string
+        harmType:
+          type: string
+          enum: [wrong_output, exclusion, privacy_exposure, physical_risk, coercive_use, other]
+        affectedGroup:
+          type: string
+        reporterRole:
+          type: string
+          enum: [field_staff, partner, community_member, reviewer, anonymous]
+    ReachEstimate:
+      type: object
+      required: [useCaseId, populationBase, runsPerIndividualPerYear, estimatedAnnualRuns]
+      properties:
+        id:
+          type: string
+        useCaseId:
+          type: string
+        populationBase:
+          type: integer
+        baseDescription:
+          type: string
+        runsPerIndividualPerYear:
+          type: number
+          format: float
+        estimatedAnnualRuns:
+          type: number
+          format: double
+        peopleReachedEstimate:
+          type: integer
+        basis:
+          type: string
+          enum: [estimated_usage_frequency, observed_usage, mixed]
+        verifiedOutcome:
+          type: boolean
+          description: Always false for usage-frequency estimates
+        methodNote:
+          type: string
+    ReachEstimateCreate:
+      type: object
+      required: [useCaseId, populationBase, runsPerIndividualPerYear]
+      properties:
+        useCaseId:
+          type: string
+        populationBase:
+          type: integer
+        baseDescription:
+          type: string
+        runsPerIndividualPerYear:
+          type: number
+          format: float
+        methodNote:
+          type: string
+    PortfolioAssuranceReport:
+      type: object
+      required: [portfolioId, period]
+      properties:
+        portfolioId:
+          type: string
+        period:
+          type: string
+        useCasesInGating:
+          type: integer
+        useCasesRejectedAtBottleneckGate:
+          type: integer
+        deploymentsActive:
+          type: integer
+        deploymentsSurvivingTwelveMonths:
+          type: integer
+        deploymentsWithLapsedDataAgreement:
+          type: integer
+        deploymentsWithoutSustainmentOwner:
+          type: integer
+        unfilledTalentRoles:
+          type: integer
+        upheldHarmReports:
+          type: integer
+        worstSubgroupGapAcrossPortfolio:
+          type: number
+          format: float
+        shelfwareExposure:
+          type: object
+          properties:
+            watch:
+              type: integer
+            high:
+              type: integer
+    DataEnvelopeUseCase:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/UseCase"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeBottleneckAssessment:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/BottleneckAssessment"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeRiskProfile:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/RiskProfile"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeReadinessGate:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/ReadinessGate"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeDataAccessAgreement:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/DataAccessAgreement"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeRevocationResult:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/RevocationResult"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeDataAsset:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/DataAsset"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeModelRelease:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/ModelRelease"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeValidationRun:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/ValidationRun"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeFieldSite:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/FieldSite"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeDeployment:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/Deployment"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeDeploymentHealthCheck:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/DeploymentHealthCheck"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeSustainmentPlan:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/SustainmentPlan"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeCapabilityHandover:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/CapabilityHandover"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeTalentAssignment:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/TalentAssignment"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeHarmReport:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/HarmReport"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopeReachEstimate:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/ReachEstimate"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    DataEnvelopePortfolioAssuranceReport:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          $ref: "#/components/schemas/PortfolioAssuranceReport"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeUseCase:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/UseCase"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeReadinessGate:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/ReadinessGate"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeDataAccessAgreement:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/DataAccessAgreement"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeDataAsset:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/DataAsset"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeModelRelease:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/ModelRelease"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeFieldSite:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/FieldSite"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeDeployment:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/Deployment"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+    ListEnvelopeHarmReport:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/HarmReport"
+            nextCursor:
+              type: string
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
